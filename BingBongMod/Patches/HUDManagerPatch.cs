@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,6 +18,13 @@ namespace BingBongMod.Patches
         [HarmonyPostfix]
         static void AddInventorySlotsUI()
         {
+            // testing based on code I found (check if server), seemingly results in slots only loading for the host
+            //if (!NetworkManager.Singleton.IsServer)
+            //{
+            //    BingBongModBase.MLS.LogWarning("IsServer check in HUDManager Awake was true?");
+            //    return;
+            //}
+
             if (!HUDManager.Instance || HUDManager.Instance.itemSlotIconFrames.Length != 4 || HUDManager.Instance.itemSlotIcons.Length != 4)
             {
                 BingBongModBase.MLS.LogWarning("Inventory UI has been tampered with already! No modification applied.");

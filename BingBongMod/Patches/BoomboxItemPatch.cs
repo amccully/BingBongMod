@@ -14,6 +14,11 @@ namespace BingBongMod.Patches
         [HarmonyPostfix]
         static void AddBoomboxSongs(BoomboxItem __instance)
         {
+            if(!__instance)
+            {
+                BingBongModBase.MLS.LogWarning("Boombox instance is null, that's odd.");
+                return;
+            }
             var musicAudiosAsList = __instance.musicAudios.ToList();
             musicAudiosAsList.Add(BingBongModBase.AddedSounds[0]);
             musicAudiosAsList.Add(BingBongModBase.AddedSounds[1]);

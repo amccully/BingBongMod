@@ -12,7 +12,9 @@ using UnityEngine;
 
 namespace BingBongMod
 {
+    [BepInDependency("LethalNetworkAPI")]
     [BepInPlugin(modGUID, modName, modVer)]
+    //[BepInDependency("Saradora.UnityNetworkMessages")]
     //[BepInDependency(LethalLib.Plugin.ModGUID)]
     public class BingBongModBase : BaseUnityPlugin
     {
@@ -44,11 +46,14 @@ namespace BingBongMod
             MLS = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             MLS.LogInfo("Initializing Bing Bong Mod");
 
+            CustomPlayerNotes.Init();
+
             harmony.PatchAll(typeof(BingBongModBase));
             harmony.PatchAll(typeof(PlayerControllerBPatch));
             //harmony.PatchAll(typeof(RoundManagerPatch));
             harmony.PatchAll(typeof(HUDManagerPatch));
             harmony.PatchAll(typeof(BoomboxItemPatch));
+            harmony.PatchAll(typeof(StartOfRoundPatch));
 
             AddedSounds = new List<AudioClip>();
             //string currDir = Environment.CurrentDirectory.ToString();
