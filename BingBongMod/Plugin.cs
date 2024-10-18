@@ -54,6 +54,7 @@ namespace BingBongMod
             harmony.PatchAll(typeof(HUDManagerPatch));
             harmony.PatchAll(typeof(BoomboxItemPatch));
             harmony.PatchAll(typeof(StartOfRoundPatch));
+            harmony.PatchAll(typeof(ShovelPatch));
 
             AddedSounds = new List<AudioClip>();
             //string currDir = Environment.CurrentDirectory.ToString();

@@ -5,44 +5,64 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using Unity.Netcode;
+using UnityEngine;
 
 namespace BingBongMod.Patches
 {
     [HarmonyPatch(typeof(PlayerControllerB))]
     internal class PlayerControllerBPatch
     {
-        static bool playerIsDancing = false;
         static float timeElapsedSinceStartedDancing = 0f;
-
-        [HarmonyPatch("PerformEmote")]
-        [HarmonyPostfix]
-        static void PerformDancingEmote(PlayerControllerB __instance, int emoteID)
+        
+        static bool hitByShovel = false;
+        public static void ResetUserVars()
         {
-            if(__instance.performingEmote && emoteID == 1)
-            {
-                playerIsDancing = true;
-                BingBongModBase.MLS.LogInfo("PerformEmote called, playerIsDancing is set to true: " + playerIsDancing);
-            }
+            BingBongModBase.MLS.LogInfo("PLAYERCONTROLLER RESET VARS CALLED, SETTING VARS");
+            timeElapsedSinceStartedDancing = 0f;
         }
+
+        public static float GetEmoteTime()
+        {
+            return timeElapsedSinceStartedDancing;
+        }
+
+        //[HarmonyPatch("Hit")]
+        //[HarmonyPostfix]
+        //static void HitByShovelItem(ref bool __result, int hitID)
+        //{
+        //    if (!__result) { return; }
+
+        //    if (hitID == 1) // hit ID of the shovel weapon
+        //    {
+        //        BingBongModBase.MLS.LogInfo("This client got hit by a shovel. hitByShovel is now true");
+        //        hitByShovel = true;
+        //    }
+        //}
 
         [HarmonyPatch("DamagePlayer")]
         [HarmonyPrefix]
-        static void PlayerFallDamage(PlayerControllerB __instance, bool fallDamage, int damageNumber)
+        static void PlayerShovelDamage(PlayerControllerB __instance, int damageNumber, CauseOfDeath causeOfDeath)
         {
-            if (__instance.takingFallDamage)
+            if (!__instance.IsOwner || __instance.isPlayerDead || !__instance.AllowPlayerDeath())
             {
-                BingBongModBase.MLS.LogInfo("Player took fall damage, adding " + damageNumber + " to fall damage amount");
-                CustomPlayerNotes.addFallDamage(__instance, damageNumber);
+                return;
+            }
+
+            if (causeOfDeath == CauseOfDeath.Bludgeoning)
+            {
+                BingBongModBase.MLS.LogInfo("PLAYER TOOK BLUDGEONING DAMAGE: " + damageNumber);
             }
         }
 
-        // (inside of HarmonyPatch:) nameof(PlayerControllerB.), after . search for name of method
-        [HarmonyPatch("Update")]
-        [HarmonyPostfix]
-        static void InfiniteSprint(PlayerControllerB __instance, ref float ___sprintMeter) // triple underscore?
-        {
-            ___sprintMeter = 1f; // max value for meter, so every frame it'll be set to max
-        }
+        //[HarmonyPatch("DamagePlayerFromOtherClientClientRpc")]
+        //[HarmonyPostfix]
+        //static void DamageFromOtherPlayers(PlayerControllerB __instance, int damageAmount, int playerWhoHit)
+        //{
+        //    if (__instance.IsOwner && __instance.isPlayerControlled)
+        //    {
+        //        BingBongModBase.MLS.LogInfo("This client got damaged by player " + playerWhoHit + " for " + damageAmount);
+        //    }
+        //}
 
         [HarmonyPatch("Update")]
         [HarmonyPostfix]
@@ -54,19 +74,70 @@ namespace BingBongMod.Patches
             // "Classes deriving from NetworkBehaviour and NetworkObject have built in isServer bools to easily check"
             if ((__instance.IsOwner && __instance.isPlayerControlled && (!__instance.IsServer || __instance.isHostPlayerObject)) || __instance.isTestingPlayer)
             {
-                if (__instance.performingEmote && playerIsDancing)
+                // emoteNumber for dancing is 1
+                if (__instance.performingEmote && __instance.playerBodyAnimator.GetInteger("emoteNumber") == 1)
                 {
-                    timeElapsedSinceStartedDancing = __instance.timeSinceStartingEmote;
-                    BingBongModBase.MLS.LogDebug("timeElapsedSinceStartedDancing: " + timeElapsedSinceStartedDancing);
+                    //timeElapsedSinceStartedDancing = __instance.timeSinceStartingEmote;
+                    timeElapsedSinceStartedDancing += Time.deltaTime;
+                    BingBongModBase.MLS.LogInfo("Player is in dancing animation. Time since starting: " + timeElapsedSinceStartedDancing);
                 }
-                if (!__instance.performingEmote && playerIsDancing)
+                else if(timeElapsedSinceStartedDancing > 0f)
                 {
                     BingBongModBase.MLS.LogInfo("Player finished dancing, adding " + timeElapsedSinceStartedDancing + " to emote time amount");
                     CustomPlayerNotes.addEmoteTime(__instance, timeElapsedSinceStartedDancing);
-                    timeElapsedSinceStartedDancing = 0f; // not needed but probably good to do anyways
-                    playerIsDancing = false;
+                    timeElapsedSinceStartedDancing = 0f;
                 }
             }
+        }
+
+        [HarmonyPatch("KillPlayer")]
+        [HarmonyPrefix]
+        static void RecordEmoteTimeOnDeath(PlayerControllerB __instance)
+        {
+            if (__instance.IsOwner && !__instance.isPlayerDead && __instance.AllowPlayerDeath())
+            {
+                // player was killed, check to see if emote time needs to be recorded
+                if (__instance.performingEmote && __instance.playerBodyAnimator.GetInteger("emoteNumber") == 1)
+                {
+                    BingBongModBase.MLS.LogInfo("Kill player prefix called and player was dancing. Record time: " + timeElapsedSinceStartedDancing);
+                    CustomPlayerNotes.addEmoteTime(__instance, timeElapsedSinceStartedDancing);
+                    timeElapsedSinceStartedDancing = 0f;
+                }
+            }
+        }
+
+        //[HarmonyPatch("Awake")]
+        //[HarmonyPostfix]
+        //static void Awake(PlayerControllerB __instance)
+        //{
+        //    BingBongModBase.MLS.LogInfo("AWAKE METHOD CALLED");
+        //    timeElapsedSinceStartedDancing = 0f;
+        //}
+
+        // -----------------------------------------
+
+        [HarmonyPatch("DamagePlayer")]
+        [HarmonyPrefix]
+        static void PlayerFallDamage(PlayerControllerB __instance, bool fallDamage, int damageNumber)
+        {
+            if (!__instance.IsOwner || __instance.isPlayerDead || !__instance.AllowPlayerDeath())
+            {
+                return;
+            }
+
+            if (__instance.takingFallDamage)
+            {
+                BingBongModBase.MLS.LogInfo("Player took fall damage, adding " + damageNumber + " to fall damage amount");
+                CustomPlayerNotes.addFallDamage(__instance, damageNumber);
+            }
+        }
+
+        // (inside of HarmonyPatch:) nameof(PlayerControllerB.), after . search for name of method
+        [HarmonyPatch("Update")]
+        [HarmonyPostfix]
+        static void InfiniteSprint(ref float ___sprintMeter) // triple underscore?
+        {
+            ___sprintMeter = 1f; // max value for meter, so every frame it'll be set to max
         }
 
         [HarmonyPatch("Awake")]

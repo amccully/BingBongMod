@@ -75,17 +75,17 @@ namespace BingBongMod.Patches
         // client subscription for EMOTE TIME
         private static void ReceiveFromServerEmoteTime((int playerId, float emoteTime) data)
         {
-            BingBongModBase.MLS.LogDebug("Received request from server to update emoteTime for this client!");
+            BingBongModBase.MLS.LogInfo("Received request from server to update emoteTime for this client!");
             if (emoteTimeDict.ContainsKey(data.playerId))
             {
                 emoteTimeDict[data.playerId] += data.emoteTime;
-                BingBongModBase.MLS.LogDebug("Data exists already in emoteTimeDict, updating playerId "
+                BingBongModBase.MLS.LogInfo("Data exists already in emoteTimeDict, updating playerId "
                                             + data.playerId + " to " + emoteTimeDict[data.playerId]);
             }
             else
             {
                 emoteTimeDict[data.playerId] = data.emoteTime;
-                BingBongModBase.MLS.LogDebug("No data in emoteTimeDict, setting playerId "
+                BingBongModBase.MLS.LogInfo("No data in emoteTimeDict, setting playerId "
                                             + data.playerId + " to " + emoteTimeDict[data.playerId]);
             }
         }
@@ -93,7 +93,7 @@ namespace BingBongMod.Patches
         // server subscription for EMOTE TIME
         private static void ReceiveFromClientEmoteTime((int playerId, float emoteTime) data, ulong clientId)
         {
-            BingBongModBase.MLS.LogDebug("Received request from client to update emoteTime for player: " + clientId + ". CURRENTLY RUNNING ON SERVER");
+            BingBongModBase.MLS.LogInfo("Received request from client to update emoteTime for player: " + clientId + ". CURRENTLY RUNNING ON SERVER");
             emoteTimeServerMessage.SendAllClients(data);
         }
 
@@ -109,7 +109,7 @@ namespace BingBongMod.Patches
         public static void addEmoteTime(PlayerControllerB playerDancing, float emoteTime)
         {
             int playerId = (int)playerDancing.playerClientId;
-            BingBongModBase.MLS.LogDebug("Received call to addEmoteTime for player: " + playerId);
+            BingBongModBase.MLS.LogInfo("Received call to addEmoteTime for player: " + playerId);
             emoteTimeClientMessage.SendServer((playerId, emoteTime));
 
         }
