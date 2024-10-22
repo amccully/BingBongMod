@@ -23,6 +23,8 @@ namespace BingBongMod.Patches
 
         public static Dictionary<int, int> fallDamageDict = new Dictionary<int, int>();
         public static Dictionary<int, float> emoteTimeDict = new Dictionary<int, float>();
+        public static Dictionary<int, int> bullyHits = new Dictionary<int, int>();
+        public static Dictionary<(int, int), int> bullyRelation = new Dictionary<(int, int), int>();
 
         public static LethalServerMessage<(int, int)> fallDamageServerMessage = new LethalServerMessage<(int, int)>(identifier: "fallDamageId");
         public static LethalClientMessage<(int, int)> fallDamageClientMessage = new LethalClientMessage<(int, int)>(identifier: "fallDamageId");
@@ -30,14 +32,20 @@ namespace BingBongMod.Patches
         public static LethalServerMessage<(int, float)> emoteTimeServerMessage = new LethalServerMessage<(int, float)>(identifier: "emoteTimeId");
         public static LethalClientMessage<(int, float)> emoteTimeClientMessage = new LethalClientMessage<(int, float)>(identifier: "emoteTimeId");
 
+        public static LethalServerMessage<(int, int)> bullyDamageServerMessage = new LethalServerMessage<(int, int)>(identifier: "bullyDamageId");
+        public static LethalClientMessage<(int, int)> bullyDamageClientMessage = new LethalClientMessage<(int, int)>(identifier: "bullyDamageId");
+
         public static void Init()
         {
             BingBongModBase.MLS.LogInfo("CUSTOM PLAYER NOTES INIT CALLED, SUBSCRIBING TO EVENTS");
             fallDamageClientMessage.OnReceived += ReceiveFromServerFallDamage;
             fallDamageServerMessage.OnReceived += ReceiveFromClientFallDamage;
-            //fallDamageDictNetwork.Value = new List<KeyValuePair<int, int>>();
             emoteTimeClientMessage.OnReceived += ReceiveFromServerEmoteTime;
             emoteTimeServerMessage.OnReceived += ReceiveFromClientEmoteTime;
+            bullyDamageClientMessage.OnReceived += ReceiveFromServerBullyDamage;
+            bullyDamageServerMessage.OnReceived += ReceiveFromClientBullyDamage;
+
+            // do we need to unsubscribe from events? client id keeps increasing when player rejoins
         }
 
         public static void ResetStats()
@@ -45,6 +53,29 @@ namespace BingBongMod.Patches
             BingBongModBase.MLS.LogInfo("CUSTOM PLAYER NOTES RESET STATS CALLED, CLEARING LISTS");
             fallDamageDict.Clear();
             emoteTimeDict.Clear();
+            bullyHits.Clear();
+            bullyRelation.Clear();
+        }
+
+        // client subscription for BULLY DAMAGE
+        private static void ReceiveFromServerBullyDamage((int playerWhoHit, int playerGotHit) data)
+        {
+            BingBongModBase.MLS.LogInfo("Received request from server to update bullyDamage for this client!");
+
+            bullyHits[data.playerWhoHit] = bullyHits.GetValueOrDefault(data.playerWhoHit) + 1;
+            BingBongModBase.MLS.LogInfo("Updating bully hits for " + data.playerWhoHit + " to " + bullyHits[data.playerWhoHit]);
+
+            bullyRelation[(data.playerWhoHit, data.playerGotHit)] = bullyRelation.GetValueOrDefault((data.playerWhoHit, data.playerGotHit)) + 1;
+            BingBongModBase.MLS.LogInfo("Updating bully relation between " + data.playerWhoHit + " and " 
+                                        + data.playerGotHit + " to " + bullyRelation[(data.playerWhoHit, data.playerGotHit)]);
+
+        }
+
+        // server subscription for BULLY DAMAGE
+        private static void ReceiveFromClientBullyDamage((int playerWhoHit, int playerGotHit) data, ulong clientId)
+        {
+            BingBongModBase.MLS.LogInfo("Received request from client to update bullyDamage for player: " + data.playerGotHit + ". CURRENTLY RUNNING ON SERVER");
+            bullyDamageServerMessage.SendAllClients((data.playerWhoHit, data.playerGotHit));
         }
 
         // client subscription for FALL DAMAGE
@@ -68,24 +99,24 @@ namespace BingBongMod.Patches
         // server subscription for FALL DAMAGE
         private static void ReceiveFromClientFallDamage((int playerId, int fallDamage) data, ulong clientId)
         {
-            BingBongModBase.MLS.LogDebug("Received request from client to update fallDamage for player: " + clientId + ". CURRENTLY RUNNING ON SERVER");
+            BingBongModBase.MLS.LogDebug("Received request from client to update fallDamage for player: " + data.playerId + ". CURRENTLY RUNNING ON SERVER");
             fallDamageServerMessage.SendAllClients(data);
         }
 
         // client subscription for EMOTE TIME
         private static void ReceiveFromServerEmoteTime((int playerId, float emoteTime) data)
         {
-            BingBongModBase.MLS.LogInfo("Received request from server to update emoteTime for this client!");
+            BingBongModBase.MLS.LogDebug("Received request from server to update emoteTime for this client!");
             if (emoteTimeDict.ContainsKey(data.playerId))
             {
                 emoteTimeDict[data.playerId] += data.emoteTime;
-                BingBongModBase.MLS.LogInfo("Data exists already in emoteTimeDict, updating playerId "
+                BingBongModBase.MLS.LogDebug("Data exists already in emoteTimeDict, updating playerId "
                                             + data.playerId + " to " + emoteTimeDict[data.playerId]);
             }
             else
             {
                 emoteTimeDict[data.playerId] = data.emoteTime;
-                BingBongModBase.MLS.LogInfo("No data in emoteTimeDict, setting playerId "
+                BingBongModBase.MLS.LogDebug("No data in emoteTimeDict, setting playerId "
                                             + data.playerId + " to " + emoteTimeDict[data.playerId]);
             }
         }
@@ -93,7 +124,7 @@ namespace BingBongMod.Patches
         // server subscription for EMOTE TIME
         private static void ReceiveFromClientEmoteTime((int playerId, float emoteTime) data, ulong clientId)
         {
-            BingBongModBase.MLS.LogInfo("Received request from client to update emoteTime for player: " + clientId + ". CURRENTLY RUNNING ON SERVER");
+            BingBongModBase.MLS.LogDebug("Received request from client to update emoteTime for player: " + data.playerId + ". CURRENTLY RUNNING ON SERVER");
             emoteTimeServerMessage.SendAllClients(data);
         }
 
@@ -112,6 +143,13 @@ namespace BingBongMod.Patches
             BingBongModBase.MLS.LogInfo("Received call to addEmoteTime for player: " + playerId);
             emoteTimeClientMessage.SendServer((playerId, emoteTime));
 
+        }
+
+        public static void addBullyDamage(int playerWhoHitId)
+        {
+            BingBongModBase.MLS.LogInfo("Received call to addBullyDamage for player");
+            bullyDamageClientMessage.SendServer((playerWhoHitId, (int)GameNetworkManager.Instance.localPlayerController.playerClientId));
+            BingBongModBase.MLS.LogInfo("PLAYER WHO HIT: " + playerWhoHitId + " AND PLAYER GOT HIT: " + (int)GameNetworkManager.Instance.localPlayerController.playerClientId);
         }
     }
 }

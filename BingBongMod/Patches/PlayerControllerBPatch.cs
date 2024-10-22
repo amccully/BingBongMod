@@ -13,55 +13,87 @@ namespace BingBongMod.Patches
     internal class PlayerControllerBPatch
     {
         static float timeElapsedSinceStartedDancing = 0f;
+        static int playerWhoHitMeId = -1;
         
-        static bool hitByShovel = false;
         public static void ResetUserVars()
         {
             BingBongModBase.MLS.LogInfo("PLAYERCONTROLLER RESET VARS CALLED, SETTING VARS");
             timeElapsedSinceStartedDancing = 0f;
         }
 
-        public static float GetEmoteTime()
+        public static void CheckRecordEmoteTime()
         {
-            return timeElapsedSinceStartedDancing;
+            if(timeElapsedSinceStartedDancing > 0f)
+            {
+                BingBongModBase.MLS.LogInfo("Adding " + timeElapsedSinceStartedDancing + " to emote time amount");
+                CustomPlayerNotes.addEmoteTime(GameNetworkManager.Instance.localPlayerController, timeElapsedSinceStartedDancing);
+                timeElapsedSinceStartedDancing = 0f;
+            }
         }
 
-        //[HarmonyPatch("Hit")]
+        //[HarmonyPatch("IHittable.Hit")]
         //[HarmonyPostfix]
-        //static void HitByShovelItem(ref bool __result, int hitID)
+        //static void HitByShovelItem(PlayerControllerB playerWhoHit, int hitID, ref bool __result)
         //{
         //    if (!__result) { return; }
 
         //    if (hitID == 1) // hit ID of the shovel weapon
         //    {
-        //        BingBongModBase.MLS.LogInfo("This client got hit by a shovel. hitByShovel is now true");
-        //        hitByShovel = true;
+        //        BingBongModBase.MLS.LogInfo("This client USED IHittable.Hit");
+        //        //CustomPlayerNotes.addBullyDamage(playerWhoHit);
         //    }
         //}
 
+        //[HarmonyPatch("DamagePlayerFromOtherClientServerRpc")]
+        //[HarmonyPostfix]
+        //static void DamagePlayerFromOtherClientServerRpc()
+        //{
+        //    BingBongModBase.MLS.LogInfo("This client USED damageplayerfromotherclientserverrpc");
+        //}
+
+        [HarmonyPatch("DamagePlayerFromOtherClientClientRpc")]
+        [HarmonyPrefix]
+        static void AssignWhoHitThisPlayer(int playerWhoHit)
+        {
+            BingBongModBase.MLS.LogInfo("playerWhoHit set to " + playerWhoHit);
+            playerWhoHitMeId = playerWhoHit;
+        }
+
+        [HarmonyPatch("DamagePlayerFromOtherClientClientRpc")]
+        [HarmonyPostfix]
+        static void ResetWhoHitThisPlayer()
+        {
+            BingBongModBase.MLS.LogInfo("playerWhoHit reset");
+            playerWhoHitMeId = -1;
+        }
+
         [HarmonyPatch("DamagePlayer")]
         [HarmonyPrefix]
-        static void PlayerShovelDamage(PlayerControllerB __instance, int damageNumber, CauseOfDeath causeOfDeath)
+        static void PlayerBludgeonDamage(PlayerControllerB __instance, int damageNumber, CauseOfDeath causeOfDeath)
         {
             if (!__instance.IsOwner || __instance.isPlayerDead || !__instance.AllowPlayerDeath())
             {
                 return;
             }
 
-            if (causeOfDeath == CauseOfDeath.Bludgeoning)
+            if (causeOfDeath == CauseOfDeath.Bludgeoning && playerWhoHitMeId != -1)
             {
                 BingBongModBase.MLS.LogInfo("PLAYER TOOK BLUDGEONING DAMAGE: " + damageNumber);
+                CustomPlayerNotes.addBullyDamage(playerWhoHitMeId);
+            }
+            else if(causeOfDeath == CauseOfDeath.Bludgeoning)
+            {
+                BingBongModBase.MLS.LogError("PLAYER WHO HIT THIS CLIENT NOT SET.");
             }
         }
 
-        //[HarmonyPatch("DamagePlayerFromOtherClientClientRpc")]
+        // testing to see if bludgeoning damage taken when snare flea is attached is normal
+        // RESULTS: this method executes on all clients, but also showed that bludgeoning damage was expected
+        //[HarmonyPatch("DamageOnOtherClients")]
         //[HarmonyPostfix]
-        //static void DamageFromOtherPlayers(PlayerControllerB __instance, int damageAmount, int playerWhoHit)
+        //static void testingMethod(int damageNumber)
         //{
-        //    if (__instance.IsOwner && __instance.isPlayerControlled)
-        //    {
-        //        BingBongModBase.MLS.LogInfo("This client got damaged by player " + playerWhoHit + " for " + damageAmount);
-        //    }
+        //    BingBongModBase.MLS.LogInfo("IMPORTANT!!!!! PLAYER TOOK DAMAGE: " + damageNumber);
         //}
 
         [HarmonyPatch("Update")]
@@ -79,13 +111,11 @@ namespace BingBongMod.Patches
                 {
                     //timeElapsedSinceStartedDancing = __instance.timeSinceStartingEmote;
                     timeElapsedSinceStartedDancing += Time.deltaTime;
-                    BingBongModBase.MLS.LogInfo("Player is in dancing animation. Time since starting: " + timeElapsedSinceStartedDancing);
+                    BingBongModBase.MLS.LogDebug("Player is in dancing animation. Time since starting: " + timeElapsedSinceStartedDancing);
                 }
-                else if(timeElapsedSinceStartedDancing > 0f)
+                else
                 {
-                    BingBongModBase.MLS.LogInfo("Player finished dancing, adding " + timeElapsedSinceStartedDancing + " to emote time amount");
-                    CustomPlayerNotes.addEmoteTime(__instance, timeElapsedSinceStartedDancing);
-                    timeElapsedSinceStartedDancing = 0f;
+                    CheckRecordEmoteTime();
                 }
             }
         }
@@ -97,22 +127,9 @@ namespace BingBongMod.Patches
             if (__instance.IsOwner && !__instance.isPlayerDead && __instance.AllowPlayerDeath())
             {
                 // player was killed, check to see if emote time needs to be recorded
-                if (__instance.performingEmote && __instance.playerBodyAnimator.GetInteger("emoteNumber") == 1)
-                {
-                    BingBongModBase.MLS.LogInfo("Kill player prefix called and player was dancing. Record time: " + timeElapsedSinceStartedDancing);
-                    CustomPlayerNotes.addEmoteTime(__instance, timeElapsedSinceStartedDancing);
-                    timeElapsedSinceStartedDancing = 0f;
-                }
+                CheckRecordEmoteTime();
             }
         }
-
-        //[HarmonyPatch("Awake")]
-        //[HarmonyPostfix]
-        //static void Awake(PlayerControllerB __instance)
-        //{
-        //    BingBongModBase.MLS.LogInfo("AWAKE METHOD CALLED");
-        //    timeElapsedSinceStartedDancing = 0f;
-        //}
 
         // -----------------------------------------
 
