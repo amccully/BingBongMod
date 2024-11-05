@@ -57,4 +57,8 @@
   <ItemGroup>
 	  <PackageReference Include="Xilophor.LethalNetworkAPI" Version="2.*" PrivateAssets="all" />
   </ItemGroup>
+  <ItemGroup>
+	  <PackageReference Include="Evaisa.LethalLib" Version="0.*" />
+  </ItemGroup>
+
 </Project>
