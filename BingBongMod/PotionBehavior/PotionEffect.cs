@@ -10,10 +10,10 @@ namespace BingBongMod.PotionBehavior
 {
     internal class Effect
     {
-        // reference to the player
-        public static PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
+        // reference to the player, FOR NOW NOT USING THIS
+        // public static PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
 
-        // whether to notify the player of the effect applied
+        // whether to notify the player of the effect applied, MAKE READ ONLY LATER
         public static bool ShowHUDTips = false;
         public string Name { get; set; }
         public int Probability { get; set; }
@@ -26,7 +26,7 @@ namespace BingBongMod.PotionBehavior
         {
             TriggerBehavior();
             int duration = UnityEngine.Random.Range(MinDuration, MaxDuration + 1); // int within the range, including min and max
-            player.StartCoroutine(DisableEffectAfterTime(duration));
+            GameNetworkManager.Instance.localPlayerController.StartCoroutine(DisableEffectAfterTime(duration));
         }
         private System.Collections.IEnumerator DisableEffectAfterTime(int time)
         {
@@ -36,12 +36,12 @@ namespace BingBongMod.PotionBehavior
         }
         public virtual void TriggerBehavior() 
         {
-            BingBongModBase.MLS.LogInfo("Effect triggered behavior");
+            BingBongModBase.MLS.LogInfo("trigger for " + Name);
         }
 
         public virtual void DisableBehavior() 
         {
-            BingBongModBase.MLS.LogInfo("Effect disabled behavior");
+            BingBongModBase.MLS.LogInfo("disable for " + Name);
         }
     }
 
@@ -54,21 +54,34 @@ namespace BingBongMod.PotionBehavior
         public override void TriggerBehavior()
         {
             base.TriggerBehavior();
-            BingBongModBase.MLS.LogInfo("trigger for agility");
-            /*
-            player.jumpForce = 2.5f;
-            player.movementSpeed = 0.25f;
-            */
+            GameNetworkManager.Instance.localPlayerController.movementSpeed *= 2;
+            GameNetworkManager.Instance.localPlayerController.jumpForce *= 2;
         }
 
         public override void DisableBehavior() 
         { 
             base.DisableBehavior();
-            BingBongModBase.MLS.LogInfo("disable for agility");
-            /*
-            player.jumpForce = 5f;
-            player.movementSpeed = 0.5f;
-            */
+            GameNetworkManager.Instance.localPlayerController.movementSpeed /= 2;
+            GameNetworkManager.Instance.localPlayerController.jumpForce /= 2;
+        }
+    }
+
+    internal class InvisibilityEffect : Effect
+    {
+        public InvisibilityEffect()
+        {
+            Name = "Invisibility";
+        }
+        public override void TriggerBehavior()
+        {
+            base.TriggerBehavior();
+            PotionNetwork.invisibilityClientMessage.SendServer(((int)GameNetworkManager.Instance.localPlayerController.playerClientId, false));
+        }
+
+        public override void DisableBehavior()
+        {
+            base.DisableBehavior();
+            PotionNetwork.invisibilityClientMessage.SendServer(((int)GameNetworkManager.Instance.localPlayerController.playerClientId, true));
         }
     }
 
@@ -78,9 +91,9 @@ namespace BingBongMod.PotionBehavior
 
         private static List<Effect> effects = new List<Effect>
         {
-            new AgilityEffect { Probability = 3, MaxDuration = 20, MinDuration = 20 },
+            new AgilityEffect { Probability = 0, MaxDuration = 20, MinDuration = 20 },
+            new InvisibilityEffect { Probability = 3, MaxDuration = 20, MinDuration = 20 },
             //new Effect { Name = "HealthRegen", Probability = 3 },
-            //new Effect { Name = "Invisibility", Probability = 3 }
         };
 
         //private static System.Random random = new System.Random();

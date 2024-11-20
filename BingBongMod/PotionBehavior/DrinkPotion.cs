@@ -20,7 +20,6 @@ namespace BingBongMod.PotionBehavior
                     return;
                 }
                 BingBongModBase.MLS.LogInfo("Item used successfully");
-                potionWasUsed = true;
                 PotionEffect.potionEffectActive = true;
 
                 NetworkObject potionNetObj = base.gameObject.GetComponent<NetworkObject>();
