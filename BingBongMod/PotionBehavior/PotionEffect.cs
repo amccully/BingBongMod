@@ -10,9 +10,6 @@ namespace BingBongMod.PotionBehavior
 {
     internal class Effect
     {
-        // reference to the player, FOR NOW NOT USING THIS
-        // public static PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
-
         // whether to notify the player of the effect applied, MAKE READ ONLY LATER
         public static bool ShowHUDTips = false;
         public string Name { get; set; }
@@ -22,18 +19,6 @@ namespace BingBongMod.PotionBehavior
         public int MaxDuration { get; set; }
         public int MinDuration { get; set; }
 
-        public void SetEffect()
-        {
-            TriggerBehavior();
-            int duration = UnityEngine.Random.Range(MinDuration, MaxDuration + 1); // int within the range, including min and max
-            GameNetworkManager.Instance.localPlayerController.StartCoroutine(DisableEffectAfterTime(duration));
-        }
-        private System.Collections.IEnumerator DisableEffectAfterTime(int time)
-        {
-            yield return new WaitForSeconds(time);
-            DisableBehavior();
-            PotionEffect.potionEffectActive = false; // after effect is disabled, we can allow another to be applied
-        }
         public virtual void TriggerBehavior() 
         {
             BingBongModBase.MLS.LogInfo("trigger for " + Name);
@@ -85,26 +70,24 @@ namespace BingBongMod.PotionBehavior
         }
     }
 
-    internal class PotionEffect
+    internal class PotionEffect : MonoBehaviour
     {
-        public static bool potionEffectActive = false; // one effect applied at a time, ensure no effect is present if using potion
+        public Coroutine currentEffectCoroutine = null;
 
         private static List<Effect> effects = new List<Effect>
         {
             new AgilityEffect { Probability = 0, MaxDuration = 20, MinDuration = 20 },
-            new InvisibilityEffect { Probability = 3, MaxDuration = 20, MinDuration = 20 },
+            new InvisibilityEffect { Probability = 3, MaxDuration = 45, MinDuration = 45 },
             //new Effect { Name = "HealthRegen", Probability = 3 },
         };
 
-        //private static System.Random random = new System.Random();
-
-        public static void triggerPotionEffect()
+        public void ChoosePotionEffect()
         {
-            Effect chosenEffect = chooseEffect();
+            Effect chosenEffect = ChooseEffect();
             if (chosenEffect != null)
             {
                 BingBongModBase.MLS.LogInfo("Setting effect for " + chosenEffect.Name);
-                chosenEffect.SetEffect();
+                SetEffect(chosenEffect);
             }
             else
             {
@@ -112,7 +95,7 @@ namespace BingBongMod.PotionBehavior
             }
         }
 
-        public static Effect chooseEffect()
+        public Effect ChooseEffect()
         {
             int totalWeight = 0;
             foreach (var effect in effects)
@@ -129,6 +112,20 @@ namespace BingBongMod.PotionBehavior
             }
 
             return null;
+        }
+
+        public void SetEffect(Effect chosenEffect)
+        {
+            chosenEffect.TriggerBehavior();
+            int duration = UnityEngine.Random.Range(chosenEffect.MinDuration, chosenEffect.MaxDuration + 1); // int within the range, including min and max
+            currentEffectCoroutine = GameNetworkManager.Instance.localPlayerController.StartCoroutine(DisableEffectAfterTime(duration, chosenEffect));
+        }
+
+        private System.Collections.IEnumerator DisableEffectAfterTime(int time, Effect chosenEffect)
+        {
+            yield return new WaitForSeconds(time);
+            chosenEffect.DisableBehavior();
+            currentEffectCoroutine = null; // after effect is disabled, we can allow another to be applied
         }
     }
 }

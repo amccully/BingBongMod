@@ -1,4 +1,5 @@
-﻿using GameNetcodeStuff;
+﻿using BingBongMod.PotionBehavior;
+using GameNetcodeStuff;
 using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,6 +30,15 @@ namespace BingBongMod.Patches
                 CustomPlayerNotes.addEmoteTime(GameNetworkManager.Instance.localPlayerController, timeElapsedSinceStartedDancing);
                 timeElapsedSinceStartedDancing = 0f;
             }
+        }
+
+        // added to attach PotionEffect to PlayerControllers
+        // move to potionbehavior later
+        [HarmonyPatch("Awake")]
+        [HarmonyPostfix]
+        static void AttachPotionEffectComp(PlayerControllerB __instance)
+        {
+            __instance.gameObject.AddComponent<PotionEffect>();
         }
 
         //[HarmonyPatch("IHittable.Hit")]

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Xml.Linq;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -12,6 +13,9 @@ namespace BingBongMod.PotionBehavior
 {
     internal class PotionNetwork : NetworkBehaviour
     {
+        //public static LethalNetworkVariable<HashSet<int>> invisiblePlayers = new LethalNetworkVariable<HashSet<int>>(identifier: "invisiblePlayers");
+        public static HashSet<int> invisiblePlayers = new HashSet<int>();
+
         public static LethalServerMessage<NetworkObject> drankPotionServerMessage = new LethalServerMessage<NetworkObject>(identifier: "drankPotionId");
         public static LethalClientMessage<NetworkObject> drankPotionClientMessage = new LethalClientMessage<NetworkObject>(identifier: "drankPotionId");
 
@@ -73,6 +77,18 @@ namespace BingBongMod.PotionBehavior
         public static void ReceiveFromClientInvisibility((int playerId, bool enable) data, ulong clientId)
         {
             BingBongModBase.MLS.LogInfo("Received request from client for " + invisibilityServerMessage.ToString() + ". CURRENTLY RUNNING ON SERVER"); // testing toString
+            // updating who is invisible:
+            if (!data.enable)
+            {
+                invisiblePlayers.Add(data.playerId);
+            }
+            else
+            {
+                invisiblePlayers.Remove(data.playerId);
+            }
+            foreach (int num in invisiblePlayers) {
+                BingBongModBase.MLS.LogInfo("PLAYER " + num + " is invis!");
+            }
             invisibilityServerMessage.SendAllClients(data);
         }
 

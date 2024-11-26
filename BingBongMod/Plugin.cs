@@ -47,7 +47,7 @@ namespace BingBongMod
             {
                 Instance = this;
             }
-
+            
             MLS = BepInEx.Logging.Logger.CreateLogSource(modGUID);
             MLS.LogInfo("Initializing Bing Bong Mod");
 
@@ -61,6 +61,15 @@ namespace BingBongMod
             harmony.PatchAll(typeof(BoomboxItemPatch));
             harmony.PatchAll(typeof(StartOfRoundPatch));
             //harmony.PatchAll(typeof(ShovelPatch));
+            harmony.PatchAll(typeof(EnemyAIPatch));
+
+            // for testing
+            var methods = harmony.GetPatchedMethods();
+            foreach (var method in methods)
+            {
+                BingBongModBase.MLS.LogInfo($"Patching method: {method.Name}");
+            }
+
 
             AddedSounds = new List<AudioClip>();
             //string currDir = Environment.CurrentDirectory.ToString();

@@ -1,4 +1,5 @@
-﻿using LethalLib.Extras;
+﻿using GameNetcodeStuff;
+using LethalLib.Extras;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -13,21 +14,30 @@ namespace BingBongMod.PotionBehavior
         public override void ItemActivate(bool used, bool buttonDown = true)
         {
             base.ItemActivate(used, buttonDown);
-            if (buttonDown && !potionWasUsed && !PotionEffect.potionEffectActive)
+            PotionEffect potionEffect = playerHeldBy.GetComponent<PotionEffect>();
+            if (potionEffect == null) {
+                BingBongModBase.MLS.LogError("Expected player holding potion to have PotionEffect component, but they didn't!");
+                return;
+            }
+            if (buttonDown && !potionWasUsed && potionEffect.currentEffectCoroutine == null)
             {
                 if (!playerHeldBy || !base.IsOwner)
                 {
+                    BingBongModBase.MLS.LogWarning("playerHeldBy: " + playerHeldBy + " and base.IsOwner: " + base.IsOwner + " respectively.");
                     return;
                 }
                 BingBongModBase.MLS.LogInfo("Item used successfully");
-                PotionEffect.potionEffectActive = true;
 
                 NetworkObject potionNetObj = base.gameObject.GetComponent<NetworkObject>();
                 if (potionNetObj) {
                     PotionNetwork.drankPotionClientMessage.SendServer(potionNetObj);
                 }
 
-                PotionEffect.triggerPotionEffect();
+                potionEffect.ChoosePotionEffect();
+            }
+            else
+            {
+                BingBongModBase.MLS.LogWarning("potionWasUsed: " + potionWasUsed + " and currentEffectCo: " + potionEffect.currentEffectCoroutine.ToString() + " respectively.");
             }
         }
     }
