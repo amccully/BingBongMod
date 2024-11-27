@@ -3,6 +3,7 @@ using HarmonyLib;
 using System;
 using GameNetcodeStuff;
 using System.Linq;
+using BingBongMod.PotionBehavior;
 
 namespace BingBongMod.Patches
 {
@@ -10,6 +11,15 @@ namespace BingBongMod.Patches
 
     internal class StartOfRoundPatch
     {
+        // POTION BEHAVIOR PATCHES (move to potion behavior later)
+        [HarmonyPatch("Awake")]
+        [HarmonyPostfix]
+        static void resetPotionBehavior(StartOfRound __instance)
+        {
+            BingBongModBase.MLS.LogInfo("Reset called for potion behavior (StartOfRound Awake)");
+            PotionNetwork.ResetVars();
+        }
+        //
 
         [HarmonyPatch("ShipHasLeft")]
         [HarmonyPrefix]

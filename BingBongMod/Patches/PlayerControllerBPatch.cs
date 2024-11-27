@@ -32,14 +32,31 @@ namespace BingBongMod.Patches
             }
         }
 
+        // POTION BEHAVIOR PATCHES (move to potion behavior later)
         // added to attach PotionEffect to PlayerControllers
-        // move to potionbehavior later
         [HarmonyPatch("Awake")]
         [HarmonyPostfix]
         static void AttachPotionEffectComp(PlayerControllerB __instance)
         {
             __instance.gameObject.AddComponent<PotionEffect>();
         }
+
+        [HarmonyPatch("KillPlayer")]
+        [HarmonyPrefix]
+        static void StopPotionEffect(PlayerControllerB __instance)
+        {
+            if (__instance.IsOwner && !__instance.isPlayerDead && __instance.AllowPlayerDeath())
+            {
+                PotionEffect potionEffect = __instance.GetComponent<PotionEffect>();
+                if (potionEffect == null)
+                {
+                    BingBongModBase.MLS.LogError("Expected player dying to have PotionEffect component, but they didn't!");
+                    return;
+                }
+                potionEffect.CancelCoroutineIfRunning();
+            }
+        }
+        ///
 
         //[HarmonyPatch("IHittable.Hit")]
         //[HarmonyPostfix]

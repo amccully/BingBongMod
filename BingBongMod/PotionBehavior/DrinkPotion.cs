@@ -19,7 +19,7 @@ namespace BingBongMod.PotionBehavior
                 BingBongModBase.MLS.LogError("Expected player holding potion to have PotionEffect component, but they didn't!");
                 return;
             }
-            if (buttonDown && !potionWasUsed && potionEffect.currentEffectCoroutine == null)
+            if (buttonDown && !potionWasUsed && potionEffect.currentEffect == null)
             {
                 if (!playerHeldBy || !base.IsOwner)
                 {
@@ -37,7 +37,7 @@ namespace BingBongMod.PotionBehavior
             }
             else
             {
-                BingBongModBase.MLS.LogWarning("potionWasUsed: " + potionWasUsed + " and currentEffectCo: " + potionEffect.currentEffectCoroutine.ToString() + " respectively.");
+                BingBongModBase.MLS.LogWarning("potionWasUsed: " + potionWasUsed + " and currentEffect: " + potionEffect.currentEffect.Name + " respectively.");
             }
         }
     }

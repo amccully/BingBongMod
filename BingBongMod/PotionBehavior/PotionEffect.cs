@@ -70,24 +70,69 @@ namespace BingBongMod.PotionBehavior
         }
     }
 
+    internal class HealthRegenEffect : Effect
+    {
+        public int HealthIncreaseAmount { get; set; }
+        private Coroutine healthCoroutine = null;
+        public HealthRegenEffect()
+        {
+            Name = "HealthRegen";
+        }
+        public override void TriggerBehavior()
+        {
+            base.TriggerBehavior();
+            PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
+            healthCoroutine = player.StartCoroutine(HealthCoroutine(player));
+        }
+
+        public override void DisableBehavior()
+        {
+            base.DisableBehavior();
+            PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
+            player.StopCoroutine(healthCoroutine);
+            healthCoroutine = null;
+        }
+
+        private System.Collections.IEnumerator HealthCoroutine(PlayerControllerB player)
+        {
+            while (true)
+            {
+                if (player.health < 100)
+                {
+                    BingBongModBase.MLS.LogInfo("Updating player health from " + player.health);
+                    player.health = Mathf.Clamp(player.health + HealthIncreaseAmount, 0, 100);
+                    HUDManager.Instance.UpdateHealthUI(health: player.health, hurtPlayer: false);
+                    BingBongModBase.MLS.LogInfo("Player health is now " + player.health);
+                }
+                yield return new WaitForSeconds(1f); // run update every second
+            }
+        }
+    }
+
+    // NOTE: should be good for now, but you may want to have an ondestroy method which
+    // calls the disable behavior (for things like invisible players) but you could also
+    // handle it in the network class (only need case I see this for is if players have
+    // a mod that lets them join after the game has started)
     internal class PotionEffect : MonoBehaviour
     {
-        public Coroutine currentEffectCoroutine = null;
+        private Coroutine currentEffectCoroutine = null;
+        private bool effectWasTriggered = false;
+        public Effect currentEffect = null;
 
         private static List<Effect> effects = new List<Effect>
         {
             new AgilityEffect { Probability = 0, MaxDuration = 20, MinDuration = 20 },
-            new InvisibilityEffect { Probability = 3, MaxDuration = 45, MinDuration = 45 },
-            //new Effect { Name = "HealthRegen", Probability = 3 },
+            new InvisibilityEffect { Probability = 0, MaxDuration = 45, MinDuration = 45 },
+            new HealthRegenEffect { Probability = 3, MaxDuration = 45, MinDuration = 45, HealthIncreaseAmount = 1 },
         };
 
         public void ChoosePotionEffect()
         {
-            Effect chosenEffect = ChooseEffect();
-            if (chosenEffect != null)
+            currentEffect = RandomizeEffect();
+            if (currentEffect != null)
             {
-                BingBongModBase.MLS.LogInfo("Setting effect for " + chosenEffect.Name);
-                SetEffect(chosenEffect);
+                BingBongModBase.MLS.LogInfo("Setting effect for " + currentEffect.Name);
+                SetEffect();
             }
             else
             {
@@ -95,7 +140,7 @@ namespace BingBongMod.PotionBehavior
             }
         }
 
-        public Effect ChooseEffect()
+        private Effect RandomizeEffect()
         {
             int totalWeight = 0;
             foreach (var effect in effects)
@@ -114,17 +159,36 @@ namespace BingBongMod.PotionBehavior
             return null;
         }
 
-        public void SetEffect(Effect chosenEffect)
+        private void SetEffect()
         {
-            chosenEffect.TriggerBehavior();
-            int duration = UnityEngine.Random.Range(chosenEffect.MinDuration, chosenEffect.MaxDuration + 1); // int within the range, including min and max
-            currentEffectCoroutine = GameNetworkManager.Instance.localPlayerController.StartCoroutine(DisableEffectAfterTime(duration, chosenEffect));
+            int duration = UnityEngine.Random.Range(currentEffect.MinDuration, currentEffect.MaxDuration + 1); // int within the range, including min and max
+            currentEffectCoroutine = StartCoroutine(EffectCoroutine(duration));
         }
 
-        private System.Collections.IEnumerator DisableEffectAfterTime(int time, Effect chosenEffect)
+        public void CancelCoroutineIfRunning()
         {
+            if(currentEffectCoroutine != null)
+            {
+                if(effectWasTriggered)
+                {
+                    currentEffect.DisableBehavior();
+                    effectWasTriggered = false;
+                    currentEffect = null;
+                }
+                StopCoroutine(currentEffectCoroutine);
+                currentEffectCoroutine = null;
+            }
+        }
+
+        private System.Collections.IEnumerator EffectCoroutine(int time)
+        {
+            yield return new WaitForSeconds(4f); // wait for 4 seconds before enabling effect
+            effectWasTriggered = true;
+            currentEffect.TriggerBehavior();
             yield return new WaitForSeconds(time);
-            chosenEffect.DisableBehavior();
+            currentEffect.DisableBehavior();
+            effectWasTriggered = false;
+            currentEffect = null;
             currentEffectCoroutine = null; // after effect is disabled, we can allow another to be applied
         }
     }

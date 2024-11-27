@@ -14,6 +14,7 @@ namespace BingBongMod.PotionBehavior
     internal class PotionNetwork : NetworkBehaviour
     {
         //public static LethalNetworkVariable<HashSet<int>> invisiblePlayers = new LethalNetworkVariable<HashSet<int>>(identifier: "invisiblePlayers");
+        // in DramaMask mod, they spawn the network handler (which is what has visible players tracked) at StartOfRound Awake!
         public static HashSet<int> invisiblePlayers = new HashSet<int>();
 
         public static LethalServerMessage<NetworkObject> drankPotionServerMessage = new LethalServerMessage<NetworkObject>(identifier: "drankPotionId");
@@ -29,6 +30,12 @@ namespace BingBongMod.PotionBehavior
             drankPotionServerMessage.OnReceived += ReceiveFromClientDrankPotion;
             invisibilityClientMessage.OnReceived += ReceiveFromServerInvisibility;
             invisibilityServerMessage.OnReceived += ReceiveFromClientInvisibility;
+        }
+
+        public static void ResetVars()
+        {
+            BingBongModBase.MLS.LogInfo("POTION NETWORK RESET VARS CALLED, CLEARING LISTS");
+            invisiblePlayers.Clear();
         }
 
         // client subscription for INVISIBILITY
