@@ -37,7 +37,7 @@ namespace BingBongMod.PotionBehavior
             }
             else
             {
-                BingBongModBase.MLS.LogWarning("potionWasUsed: " + potionWasUsed + " and currentEffect: " + potionEffect.currentEffect.Name + " respectively.");
+                BingBongModBase.MLS.LogWarning("potionWasUsed: " + potionWasUsed + " and currentEffect: " + potionEffect.currentEffect + " respectively.");
             }
         }
     }

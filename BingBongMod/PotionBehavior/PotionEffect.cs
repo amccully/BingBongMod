@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEngine.PlayerLoop;
+using Random = UnityEngine.Random;
 
 namespace BingBongMod.PotionBehavior
 {
@@ -109,6 +111,66 @@ namespace BingBongMod.PotionBehavior
         }
     }
 
+    internal class VoiceAlterationEffect : Effect
+    {
+        private Coroutine voiceCoroutine = null;
+        public VoiceAlterationEffect()
+        {
+            Name = "VoiceAlteration";
+        }
+        public override void TriggerBehavior()
+        {
+            base.TriggerBehavior();
+            PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
+            voiceCoroutine = player.StartCoroutine(VoiceCoroutine(player));
+        }
+
+        public override void DisableBehavior()
+        {
+            base.DisableBehavior();
+            PlayerControllerB player = GameNetworkManager.Instance.localPlayerController;
+            player.StopCoroutine(voiceCoroutine);
+            voiceCoroutine = null;
+            for (int i = 0; i < SoundManager.Instance.playerVoicePitchTargets.Length; i++)
+            {
+                BingBongModBase.MLS.LogInfo("Resetting pitch for player " + i);
+                SoundManager.Instance.SetPlayerPitch(1f, i);
+            }
+        }
+
+        private float GenerateSkewedRandomValue(float min, float max)
+        {
+            float middleBias = 0.2f; // Adjust this value to control skewness
+            float skewedValue;
+
+            if (Random.value > 0.5f) // 50% chance to skew towards lower end
+            {
+                skewedValue = Mathf.Pow(Random.value, middleBias);
+            }
+            else // 50% chance to skew towards upper end
+            {
+                skewedValue = 1f - Mathf.Pow(Random.value, middleBias);
+            }
+
+            return Mathf.Lerp(min, max, skewedValue);
+        }
+
+
+        private System.Collections.IEnumerator VoiceCoroutine(PlayerControllerB player)
+        {
+            while (true)
+            {
+                float randomVal = GenerateSkewedRandomValue(0f, 3f);
+                BingBongModBase.MLS.LogWarning("Random pitch value is: " + randomVal);
+                for (int i = 0; i < SoundManager.Instance.playerVoicePitchTargets.Length; i++)
+                {
+                    SoundManager.Instance.SetPlayerPitch(randomVal, i);
+                }
+                yield return new WaitForFixedUpdate();
+            }
+        }
+    }
+
     // NOTE: should be good for now, but you may want to have an ondestroy method which
     // calls the disable behavior (for things like invisible players) but you could also
     // handle it in the network class (only need case I see this for is if players have
@@ -121,9 +183,10 @@ namespace BingBongMod.PotionBehavior
 
         private static List<Effect> effects = new List<Effect>
         {
-            new AgilityEffect { Probability = 0, MaxDuration = 20, MinDuration = 20 },
+            new AgilityEffect { Probability = 3, MaxDuration = 20, MinDuration = 20 },
             new InvisibilityEffect { Probability = 0, MaxDuration = 45, MinDuration = 45 },
-            new HealthRegenEffect { Probability = 3, MaxDuration = 45, MinDuration = 45, HealthIncreaseAmount = 1 },
+            new HealthRegenEffect { Probability = 0, MaxDuration = 45, MinDuration = 45, HealthIncreaseAmount = 5 },
+            new VoiceAlterationEffect { Probability = 0, MaxDuration = 30, MinDuration = 30 }
         };
 
         public void ChoosePotionEffect()
@@ -161,7 +224,7 @@ namespace BingBongMod.PotionBehavior
 
         private void SetEffect()
         {
-            int duration = UnityEngine.Random.Range(currentEffect.MinDuration, currentEffect.MaxDuration + 1); // int within the range, including min and max
+            int duration = Random.Range(currentEffect.MinDuration, currentEffect.MaxDuration + 1); // int within the range, including min and max
             currentEffectCoroutine = StartCoroutine(EffectCoroutine(duration));
         }
 
